@@ -1,3 +1,4 @@
+# python3
 import argparse
 import json
 import logging
@@ -39,18 +40,15 @@ class Atlassian:
             raise Exception(backup, backup.text)
         else:
             print('-> Backup process successfully started')
-            confluence_backup_status = 'https://{}/wiki/rest/obm/1.0/getprogress'.format(
-                self.config['ATLASSIAN_TENANT'])
+            confluence_backup_status = f"https://{self.config['ATLASSIAN_TENANT']}/wiki/rest/obm/1.0/getprogress"
             time.sleep(self.wait)
             while 'fileName' not in self.backup_status.keys():
                 self.backup_status = json.loads(
                     self.session.get(confluence_backup_status).text)
-                print('Current status: {progress}; {description}'.format(
-                    progress=self.backup_status['alternativePercentage'],
-                    description=self.backup_status['currentStatus']))
+                print(
+                    f"Current status: {self.backup_status['alternativePercentage']}; {self.backup_status['currentStatus']}")
                 time.sleep(self.wait)
-            return 'https://{url}/wiki/download/{file_name}'.format(
-                url=self.config['ATLASSIAN_TENANT'], file_name=self.backup_status['fileName'])
+            return f"https://{self.config['ATLASSIAN_TENANT']}/wiki/download/{self.backup_status['fileName']}"
 
     def create_jira_backup(self) -> str:
         backup = self.session.post(
@@ -59,7 +57,7 @@ class Atlassian:
             raise Exception(backup, backup.text)
         else:
             task_id = json.loads(backup.text)['taskId']
-            print('-> Backup process successfully started: taskId={}'.format(task_id))
+            print(f'-> Backup process successfully started: taskId={task_id}')
             jira_backup_status = f"https://{self.config['ATLASSIAN_TENANT']}/rest/backup/1/export/getProgress?taskId={task_id}"
             time.sleep(self.wait)
             while 'result' not in self.backup_status.keys():
@@ -68,11 +66,10 @@ class Atlassian:
                 print(
                     f"Current status: {self.backup_status['status']} {self.backup_status['progress']}; {self.backup_status['description']}")
                 time.sleep(self.wait)
-            return '{prefix}/{result_id}'.format(
-                prefix='https://' + self.config['ATLASSIAN_TENANT'] + '/plugins/servlet', result_id=self.backup_status['result'])
+            return f"https://{self.config['ATLASSIAN_TENANT']}/plugins/servlet/{self.backup_status['result']}"
 
     def download_file(self, url, local_filename) -> None:
-        print('-> Downloading file from URL: {}'.format(url))
+        print(f'-> Downloading file from URL: {url}')
         r = self.session.get(url, stream=True)
         file_path = os.path.join(os.path.dirname(
             os.path.abspath(__file__)), 'backups', local_filename)
@@ -83,13 +80,6 @@ class Atlassian:
         print(file_path)
 
 
-def read_config() -> Any:
-    config_path = os.path.join(os.path.dirname(
-        os.path.abspath(__file__)), CONFIG_FILE)
-    with open(config_path, 'r') as config_file:
-        return yaml.full_load(config_file)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('-w', action='store_true',
@@ -98,7 +88,7 @@ def main() -> None:
                         dest='confluence', help='activate confluence backup')
     parser.add_argument('-j', action='store_true',
                         dest='jira', help='activate jira backup')
-    if parser.parse_args().wizard or (os.path.exists(CONFIG_FILE) == False):
+    if parser.parse_args().wizard or (os.path.exists(os.path.join(get_root_dir(), CONFIG_FILE)) == False):
         wizard.create_config()
 
     config = read_config()
@@ -127,6 +117,12 @@ def get_root_dir() -> str:
         return os.path.dirname(__file__)
     else:
         return './'
+
+
+def read_config() -> Any:
+    config_path = os.path.join(get_root_dir(), CONFIG_FILE)
+    with open(config_path, 'r') as config_file:
+        return yaml.full_load(config_file)
 
 
 if __name__ == "__main__":
